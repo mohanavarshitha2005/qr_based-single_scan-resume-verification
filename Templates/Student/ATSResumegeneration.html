@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generate ATS Resume - QR Verify</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            margin: 0;
+            padding: 0;
+        }
+
+        .navbar {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 1rem 2rem;
+        }
+
+        .navbar-brand {
+            color: white !important;
+            font-weight: bold;
+            font-size: 1.5rem;
+        }
+
+        .nav-link {
+            color: rgba(255, 255, 255, 0.9) !important;
+            margin: 0 0.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .nav-link:hover {
+            color: white !important;
+            transform: translateY(-2px);
+        }
+
+        .main-content {
+            display: flex;
+            height: calc(100vh - 76px);
+        }
+
+        .sidebar {
+            background: #f9fafb;
+            width: 35%;
+            overflow-y: auto;
+            padding: 20px;
+            border-right: 1px solid #e5e7eb;
+        }
+
+        .section {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 12px;
+            border: 1px solid #e5e7eb;
+        }
+
+        .preview-wrapper {
+            width: 65%;
+            padding: 30px;
+            overflow-y: auto;
+            display: flex;
+            justify-content: center;
+        }
+
+        #resumePreview {
+            width: 794px;
+            min-height: 1123px;
+            background: white;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        }
+
+        .qr {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+        }
+
+        .template-select {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            color: #333;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .form-control {
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            padding: 12px 15px;
+            transition: all 0.3s ease;
+        }
+
+        .form-control:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .profile-img-preview {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid #1f3b4d;
+            margin-bottom: 15px;
+        }
+
+        .img-upload-btn {
+            font-size: 12px;
+            padding: 5px 10px;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="{% url 'student_dashboard' %}">
+                <i class="fas fa-qrcode me-2"></i>QR Verify
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'student_dashboard' %}">
+                            <i class="fas fa-home me-1"></i> Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <button class="btn btn-dark ms-3" onclick="downloadPDF()">Download PDF</button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="btn btn-success ms-3" onclick="uploadResume()">Upload Resume</button>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'student_logout' %}">
+                            <i class="fas fa-sign-out-alt me-1"></i> Logout
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    {% csrf_token %}
+
+    <div class="main-content">
+        <div class="sidebar">
+            <div class="section template-select">
+                <h6>Select Resume Template</h6>
+                <select class="form-select" id="templateSelect" onchange="update()">
+                    <option value="1">Clean Professional</option>
+                    <option value="2">Dark Sidebar Modern</option>
+                    <option value="3">Profile Card Soft UI</option>
+                </select>
+            </div>
+
+            <div class="section">
+                <h6>Personal Information</h6>
+                <div class="mb-3">
+                    <label class="form-label">Full Name</label>
+                    <input type="text" class="form-control" id="name" placeholder="Full Name" oninput="update()">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Email</label>
+                    <input type="email" class="form-control" id="email" placeholder="Email" oninput="update()">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Phone</label>
+                    <input type="text" class="form-control" id="phone" placeholder="Phone" oninput="update()">
+                </div>
+            </div>
+
+            <div class="section">
+                <h6>Profile Summary</h6>
+                <textarea class="form-control" id="summary" rows="3" placeholder="Profile Summary" oninput="update()"></textarea>
+            </div>
+
+            <div class="section">
+                <h6>Experience</h6>
+                <textarea class="form-control" id="experience" rows="5" placeholder="Experience" oninput="update()"></textarea>
+            </div>
+
+            <div class="section">
+                <h6>Education</h6>
+                <textarea class="form-control" id="education" rows="3" placeholder="Education" oninput="update()"></textarea>
+            </div>
+
+            <div class="section">
+                <h6>Skills</h6>
+                <textarea class="form-control" id="skills" rows="3" placeholder="Skills (comma separated)" oninput="update()"></textarea>
+            </div>
+
+            <div class="section">
+                <h6>Projects</h6>
+                <textarea class="form-control" id="projects" rows="4" placeholder="Projects" oninput="update()"></textarea>
+            </div>
+        </div>
+
+        <div class="preview-wrapper">
+            <div id="resumePreview"></div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const sampleData = {
+            1: {
+                name: "John Doe",
+                email: "john.doe@email.com",
+                phone: "123-456-7890",
+                summary: "Experienced software developer with 5+ years in full-stack development, specializing in JavaScript, Python, and cloud technologies.",
+                experience: "Software Developer at TechCorp (2020-Present)\n- Developed scalable web applications using React and Node.js\n- Improved application performance by 30% through code optimization\n\nJunior Developer at StartupInc (2018-2020)\n- Built RESTful APIs and integrated third-party services\n- Collaborated with cross-functional teams in agile environment",
+                education: "Bachelor of Science in Computer Science\nUniversity of Technology, 2018",
+                skills: "JavaScript, Python, React, Node.js, AWS, Git, Docker",
+                projects: "E-commerce Platform (2022)\n- Built full-stack application with 10k+ users\n- Technologies: React, Express, MongoDB\n\nAI Chatbot (2021)\n- Developed NLP-based chatbot for customer service\n- Reduced response time by 50%"
+            },
+            2: {
+                name: "Jane Smith",
+                email: "jane.smith@email.com",
+                phone: "987-654-3210",
+                summary: "Detail-oriented data analyst with 4+ years experience in data visualization, statistical analysis, and business intelligence.",
+                experience: "Data Analyst at DataCorp (2019-Present)\n- Analyzed large datasets to identify business insights\n- Created dashboards that increased efficiency by 25%\n- Presented findings to executive team\n\nData Analyst Intern at AnalyticsInc (2018-2019)\n- Cleaned and processed data for predictive models\n- Assisted in A/B testing and statistical analysis",
+                education: "Master of Science in Data Science\nState University, 2018",
+                skills: "Python, R, SQL, Tableau, Power BI, Excel, Machine Learning",
+                projects: "Customer Segmentation Analysis (2023)\n- Analyzed 100k+ customer records\n- Improved targeting accuracy by 40%\n\nSales Forecasting Model (2022)\n- Built predictive model with 85% accuracy\n- Saved $500k in inventory costs"
+            },
+            3: {
+                name: "Mike Johnson",
+                email: "mike.johnson@email.com",
+                phone: "555-123-4567",
+                summary: "Creative marketing specialist with 6+ years experience in digital marketing, content creation, and brand management.",
+                experience: "Marketing Manager at BrandCo (2021-Present)\n- Led digital campaigns resulting in 150% ROI increase\n- Managed social media presence for 50k+ followers\n- Developed content strategy that boosted engagement by 60%\n\nMarketing Coordinator at AgencyX (2018-2021)\n- Coordinated email marketing campaigns\n- Created visual content for various platforms\n- Analyzed campaign performance metrics",
+                education: "Bachelor of Arts in Marketing\nBusiness University, 2018",
+                skills: "SEO, SEM, Social Media Marketing, Content Creation, Adobe Creative Suite, Google Analytics",
+                projects: "Brand Awareness Campaign (2023)\n- Increased brand recognition by 35%\n- Reached 200k+ new audience members\n\nContent Strategy Overhaul (2022)\n- Redesigned content calendar\n- Improved organic traffic by 75%"
+            }
+        };
+
+        function formatList(text) {
+            if (!text) return '<p>No data provided</p>';
+            return `<ul style="padding-left:20px; margin:0;">
+                ${text.split('\n').map(item => `<li style="margin-bottom:5px;">${item}</li>`).join('')}
+            </ul>`;
+        }
+
+        function formatSkills(text) {
+            if (!text) return '<p>No skills provided</p>';
+            const skills = text.split(',').map(s => s.trim()).filter(s => s);
+            return `<ul style="padding-left:20px; margin:0;">
+                ${skills.map(skill => `<li style="margin-bottom:3px;">${skill}</li>`).join('')}
+            </ul>`;
+        }
+
+        function template1(data) {
+            return `
+            <div style="padding:50px; font-family:'Segoe UI',Arial,sans-serif;">
+                <div style="text-align:center; margin-bottom:30px; border-bottom:2px solid #667eea; padding-bottom:20px;">
+                    <h1 style="margin:0;color:#333;font-size:32px;">${data.name}</h1>
+                    <p style="color:#666;margin:5px 0 0;">${data.email} | ${data.phone}</p>
+                </div>
+
+                <div style="margin-bottom:25px;">
+                    <h3 style="color:#667eea;border-bottom:2px solid #667eea;padding-bottom:5px;margin-bottom:15px;">PROFILE SUMMARY</h3>
+                    <p style="color:#555;line-height:1.6;">${data.summary}</p>
+                </div>
+
+                <div style="margin-bottom:25px;">
+                    <h3 style="color:#667eea;border-bottom:2px solid #667eea;padding-bottom:5px;margin-bottom:15px;">EXPERIENCE</h3>
+                    ${formatList(data.experience)}
+                </div>
+
+                <div style="margin-bottom:25px;">
+                    <h3 style="color:#667eea;border-bottom:2px solid #667eea;padding-bottom:5px;margin-bottom:15px;">EDUCATION</h3>
+                    <p style="color:#555;line-height:1.6;">${data.education}</p>
+                </div>
+
+                <div style="margin-bottom:25px;">
+                    <h3 style="color:#667eea;border-bottom:2px solid #667eea;padding-bottom:5px;margin-bottom:15px;">SKILLS</h3>
+                    ${formatSkills(data.skills)}
+                </div>
+
+                <div style="margin-bottom:25px;">
+                    <h3 style="color:#667eea;border-bottom:2px solid #667eea;padding-bottom:5px;margin-bottom:15px;">PROJECTS</h3>
+                    ${formatList(data.projects)}
+                </div>
+            </div>`;
+        }
+
+        function template2(data) {
+            return `
+            <div style="display:flex;min-height:1123px;font-family:'Segoe UI',Arial,sans-serif;">
+                <!-- LEFT SIDEBAR -->
+                <div style="width:35%;background:#1f3b4d;color:white;padding:40px 25px;display:flex;flex-direction:column;align-items:center;">
+
+                    <h2 style="margin:0 0 5px;font-size:24px;text-align:center;">${data.name}</h2>
+                    <p style="margin:0 0 25px;font-size:13px;opacity:0.9;text-align:center;">${data.email}</p>
+                    <p style="margin:0 0 35px;font-size:13px;opacity:0.9;text-align:center;">${data.phone}</p>
+
+                    <div style="width:100%;margin-bottom:30px;">
+                        <h4 style="margin:0 0 12px;font-size:16px;border-bottom:1px solid rgba(255,255,255,0.4);padding-bottom:5px;">SKILLS</h4>
+                        ${formatSkills(data.skills)}
+                    </div>
+
+                    <div style="width:100%;margin-bottom:30px;">
+                        <h4 style="margin:0 0 12px;font-size:16px;border-bottom:1px solid rgba(255,255,255,0.4);padding-bottom:5px;">EDUCATION</h4>
+                        <p style="font-size:13px;line-height:1.6;">${data.education}</p>
+                    </div>
+
+                    <div style="width:100%;margin-top:auto;">
+                        <h4 style="margin:0 0 12px;font-size:16px;border-bottom:1px solid rgba(255,255,255,0.4);padding-bottom:5px;">CONTACT</h4>
+                        <p style="font-size:12px;line-height:1.8;">
+                            <i class="fas fa-envelope" style="width:20px;"></i> ${data.email}<br>
+                            <i class="fas fa-phone" style="width:20px;"></i> ${data.phone}
+                        </p>
+                    </div>
+                </div>
+
+                <!-- RIGHT CONTENT -->
+                <div style="width:65%;padding:100px 40px;background:#fff;">
+                    <div style="margin-bottom:30px;">
+                        <h2 style="color:#1f3b4d;margin:0 0 15px;font-size:26px;">Professional Profile</h2>
+                        <p style="color:#555;line-height:1.7;">${data.summary}</p>
+                    </div>
+
+                    <div style="margin-bottom:30px;">
+                        <h3 style="color:#1f3b4d;margin:0 0 15px;font-size:20px;border-bottom:2px solid #667eea;padding-bottom:5px;">Work Experience</h3>
+                        ${formatList(data.experience)}
+                    </div>
+
+                    <div style="margin-bottom:30px;">
+                        <h3 style="color:#1f3b4d;margin:0 0 15px;font-size:20px;border-bottom:2px solid #667eea;padding-bottom:5px;">Projects</h3>
+                        ${formatList(data.projects)}
+                    </div>
+                </div>
+            </div>`;
+        }
+
+        function template3(data) {
+            return `
+            <div style="background:#f8f9fa;padding:40px 30px;font-family:'Segoe UI',Arial,sans-serif;">
+                <div style="background:white;border-radius:20px;padding:35px;box-shadow:0 8px 30px rgba(0,0,0,0.08);">
+                    <!-- HEADER CARD -->
+                    <div style="display:flex;align-items:center;margin-bottom:30px;padding-bottom:25px;border-bottom:1px solid #eee;">
+                        <div>
+                            <h1 style="margin:0;color:#333;font-size:28px;">${data.name}</h1>
+                            <p style="margin:8px 0 0;color:#666;font-size:14px;">
+                                <i class="fas fa-envelope" style="width:18px;"></i> ${data.email}<br>
+                                <i class="fas fa-phone" style="width:18px;"></i> ${data.phone}
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- SUMMARY -->
+                    <div style="margin-bottom:28px;">
+                        <h3 style="color:#667eea;margin:0 0 12px;font-size:18px;display:flex;align-items:center;">
+                            <span style="width:4px;height:20px;background:#667eea;border-radius:2px;margin-right:10px;"></span>
+                            About Me
+                        </h3>
+                        <p style="color:#555;line-height:1.7;font-size:14px;background:#f8f9fa;padding:15px;border-radius:10px;border-left:3px solid #667eea;">${data.summary}</p>
+                    </div>
+
+                    <!-- EXPERIENCE -->
+                    <div style="margin-bottom:28px;">
+                        <h3 style="color:#667eea;margin:0 0 12px;font-size:18px;display:flex;align-items:center;">
+                            <span style="width:4px;height:20px;background:#667eea;border-radius:2px;margin-right:10px;"></span>
+                            Experience
+                        </h3>
+                        ${formatList(data.experience)}
+                    </div>
+
+                    <!-- EDUCATION -->
+                    <div style="margin-bottom:28px;">
+                        <h3 style="color:#667eea;margin:0 0 12px;font-size:18px;display:flex;align-items:center;">
+                            <span style="width:4px;height:20px;background:#667eea;border-radius:2px;margin-right:10px;"></span>
+                            Education
+                        </h3>
+                        <p style="color:#555;line-height:1.7;font-size:14px;background:#f8f9fa;padding:15px;border-radius:10px;">${data.education}</p>
+                    </div>
+
+                    <!-- SKILLS -->
+                    <div style="margin-bottom:28px;">
+                        <h3 style="color:#667eea;margin:0 0 12px;font-size:18px;display:flex;align-items:center;">
+                            <span style="width:4px;height:20px;background:#667eea;border-radius:2px;margin-right:10px;"></span>
+                            Skills
+                        </h3>
+                        ${formatSkills(data.skills)}
+                    </div>
+
+                    <!-- PROJECTS -->
+                    <div>
+                        <h3 style="color:#667eea;margin:0 0 12px;font-size:18px;display:flex;align-items:center;">
+                            <span style="width:4px;height:20px;background:#667eea;border-radius:2px;margin-right:10px;"></span>
+                            Projects
+                        </h3>
+                        ${formatList(data.projects)}
+                    </div>
+                </div>
+            </div>`;
+        }
+
+        function update() {
+            const data = {
+                name: document.getElementById('name').value || 'Your Name',
+                email: document.getElementById('email').value || 'your@email.com',
+                phone: document.getElementById('phone').value || '123-456-7890',
+                summary: document.getElementById('summary').value || 'Professional summary not provided.',
+                experience: document.getElementById('experience').value || 'No experience listed.',
+                education: document.getElementById('education').value || 'No education listed.',
+                skills: document.getElementById('skills').value || 'No skills listed.',
+                projects: document.getElementById('projects').value || 'No projects listed.'
+            };
+
+            const selected = document.getElementById('templateSelect').value;
+            const preview = document.getElementById('resumePreview');
+
+            if (selected === '1') {
+                preview.innerHTML = template1(data);
+            } else if (selected === '2') {
+                preview.innerHTML = template2(data);
+            } else {
+                preview.innerHTML = template3(data);
+            }
+        }
+
+        function loadTemplate() {
+            const selected = document.getElementById('templateSelect').value;
+            const template = sampleData[selected];
+            if (template) {
+                document.getElementById('name').value = template.name;
+                document.getElementById('email').value = template.email;
+                document.getElementById('phone').value = template.phone;
+                document.getElementById('summary').value = template.summary;
+                document.getElementById('experience').value = template.experience;
+                document.getElementById('education').value = template.education;
+                document.getElementById('skills').value = template.skills;
+                document.getElementById('projects').value = template.projects;
+                update();
+            }
+        }
+
+        function downloadPDF() {
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF();
+
+            const data = {
+                name: document.getElementById('name').value,
+                email: document.getElementById('email').value,
+                phone: document.getElementById('phone').value,
+                summary: document.getElementById('summary').value,
+                experience: document.getElementById('experience').value,
+                education: document.getElementById('education').value,
+                skills: document.getElementById('skills').value,
+                projects: document.getElementById('projects').value
+            };
+
+            let y = 15;
+
+            pdf.setFont("helvetica", "bold");
+            pdf.setFontSize(20);
+            pdf.text(data.name || "Your Name", 15, y);
+            y += 8;
+
+            pdf.setFont("helvetica", "normal");
+            pdf.setFontSize(10);
+            pdf.text(`${data.email} | ${data.phone}`, 15, y);
+            y += 10;
+
+            function addSection(title, content) {
+                if (!content) return;
+
+                pdf.setFont("helvetica", "bold");
+                pdf.setFontSize(12);
+                pdf.text(title, 15, y);
+                y += 6;
+
+                pdf.setFont("helvetica", "normal");
+                pdf.setFontSize(10);
+                
+                const lines = pdf.splitTextToSize(content, 180);
+                pdf.text(lines, 15, y);
+                y += (lines.length * 5) + 5;
+            }
+
+            addSection("SUMMARY", data.summary);
+            addSection("EXPERIENCE", data.experience);
+            addSection("EDUCATION", data.education);
+            addSection("SKILLS", data.skills);
+            addSection("PROJECTS", data.projects);
+
+            pdf.save("ATS_Resume.pdf");
+        }
+
+        function uploadResume() {
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF();
+
+            const data = {
+                name: document.getElementById('name').value,
+                email: document.getElementById('email').value,
+                phone: document.getElementById('phone').value,
+                summary: document.getElementById('summary').value,
+                experience: document.getElementById('experience').value,
+                education: document.getElementById('education').value,
+                skills: document.getElementById('skills').value,
+                projects: document.getElementById('projects').value
+            };
+
+            let y = 15;
+
+            pdf.setFont("helvetica", "bold");
+            pdf.setFontSize(20);
+            pdf.text(data.name || "Your Name", 15, y);
+            y += 8;
+
+            pdf.setFont("helvetica", "normal");
+            pdf.setFontSize(10);
+            pdf.text(`${data.email} | ${data.phone}`, 15, y);
+            y += 10;
+
+            function addSection(title, content) {
+                if (!content) return;
+
+                pdf.setFont("helvetica", "bold");
+                pdf.setFontSize(12);
+                pdf.text(title, 15, y);
+                y += 6;
+
+                pdf.setFont("helvetica", "normal");
+                pdf.setFontSize(10);
+                
+                const lines = pdf.splitTextToSize(content, 180);
+                pdf.text(lines, 15, y);
+                y += (lines.length * 5) + 5;
+            }
+
+            addSection("SUMMARY", data.summary);
+            addSection("EXPERIENCE", data.experience);
+            addSection("EDUCATION", data.education);
+            addSection("SKILLS", data.skills);
+            addSection("PROJECTS", data.projects);
+
+            const formData = new FormData();
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
+            if (csrfToken) formData.append('csrfmiddlewaretoken', csrfToken.value);
+
+            const pdfBlob = pdf.output('blob');
+            formData.append('file', pdfBlob, 'ATS_Resume.pdf');
+
+            fetch('/student/upload/resume/', {
+                method: 'POST',
+                body: formData
+            }).then(response => {
+                if (response.ok) {
+                    alert('Resume uploaded successfully!');
+                    window.location.href = '{% url "student_dashboard" %}';
+                } else {
+                    alert('Failed to upload resume.');
+                }
+            }).catch(error => {
+                console.error('Error:', error);
+                alert('Error uploading resume.');
+            });
+        }
+
+        window.onload = function() {
+            loadTemplate();
+        };
+    </script>
+</body>
+</html>
